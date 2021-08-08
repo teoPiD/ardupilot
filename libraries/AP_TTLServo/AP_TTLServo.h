@@ -27,7 +27,11 @@ class AP_TTLServo {
 
     // Do not allow copies
     AP_TTLServo(const AP_TTLServo &other) = delete;
+<<<<<<< HEAD
     AP_TTLServo &operator=(const AP_TTLServo&) = delete;
+=======
+    AP_TTLServo &operator = (const AP_TTLServo&) = delete;
+>>>>>>> 4f6e74e78f... AP_TTLServo: implement communication protocol for TTL servos based on Robotis Dynamixel 1.0 protocol
 
     static const struct AP_Param::GroupInfo var_info[];
 
@@ -44,10 +48,17 @@ class AP_TTLServo {
     void configure_servos(void);
     void detect_servos(void);
     void init(void);
+<<<<<<< HEAD
     void process_packet(const uint8_t *packet, uint8_t length);
     void read_bytes();
     void send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len);
     void send_packet(const uint8_t *packet, uint8_t len);
+=======
+    void process_packet(const uint8_t *pkt, uint8_t length);
+    void read_bytes();
+    void send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len);
+    void send_packet(uint8_t *txpacket);
+>>>>>>> 4f6e74e78f... AP_TTLServo: implement communication protocol for TTL servos based on Robotis Dynamixel 1.0 protocol
 
     bool initialised;
 
@@ -62,9 +73,12 @@ class AP_TTLServo {
     // Keep track of the data sent required time
     uint32_t last_send_us;
     uint32_t delay_time_us;
+<<<<<<< HEAD
     
     // Keep track of the servo positions
     uint16_t servo_position[32];
+=======
+>>>>>>> 4f6e74e78f... AP_TTLServo: implement communication protocol for TTL servos based on Robotis Dynamixel 1.0 protocol
 
     // PARAMETERS
     // Servo position limits
