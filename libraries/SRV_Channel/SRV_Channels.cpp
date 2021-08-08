@@ -47,6 +47,7 @@ SRV_Channels *SRV_Channels::_singleton;
 AP_Volz_Protocol *SRV_Channels::volz_ptr;
 AP_SBusOut *SRV_Channels::sbus_ptr;
 AP_RobotisServo *SRV_Channels::robotis_ptr;
+AP_TTLServo *SRV_Channels::ttl_servo_ptr;
 #endif // HAL_BUILD_AP_PERIPH
 
 uint16_t SRV_Channels::override_counter[NUM_SERVO_CHANNELS];
@@ -197,6 +198,11 @@ const AP_Param::GroupInfo SRV_Channels::var_info[] = {
     // @Group: _ROB_
     // @Path: ../AP_RobotisServo/AP_RobotisServo.cpp
     AP_SUBGROUPINFO(robotis, "_ROB_",  22, SRV_Channels, AP_RobotisServo),
+    
+    // @Group: _TTL_
+    // @Path: ../AP_TTLServo/AP_TTLServo.cpp
+    AP_SUBGROUPINFO(ttl_servo, "_TTL_",  25, SRV_Channels, AP_TTLServo),
+    
 #endif // HAL_BUILD_AP_PERIPH
 
     // @Param: _DSHOT_RATE
@@ -236,6 +242,7 @@ SRV_Channels::SRV_Channels(void)
     volz_ptr = &volz;
     sbus_ptr = &sbus;
     robotis_ptr = &robotis;
+    ttl_servo_ptr = &ttl_servo;
 #if HAL_SUPPORT_RCOUT_SERIAL
     blheli_ptr = &blheli;
 #endif
@@ -343,6 +350,9 @@ void SRV_Channels::push()
 
     // give robotis library a chance to update
     robotis_ptr->update();
+    
+    // Give TTLServo library a chance to update
+    ttl_servo_ptr->update();
     
 #if HAL_SUPPORT_RCOUT_SERIAL
     // give blheli telemetry a chance to update
