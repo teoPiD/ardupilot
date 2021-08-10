@@ -145,18 +145,17 @@ const AP_Param::GroupInfo AP_TTLServo::var_info[] = {
 // Constructor
 AP_TTLServo::AP_TTLServo(void)
 {
-
     // Set defaults from the parameter table
     AP_Param::setup_object_defaults(this, var_info);
 }
 
 // Calculate communication protocol CRC (same as Robotis Dynamixel 1.0 protocol CRC)
-uint8_t AP_TTLServo::calculate_crc(uint8_t *txpacket, uint8_t len)
+uint8_t AP_TTLServo::calculate_crc(uint8_t *tx_packet, uint8_t len)
 {
     uint8_t checkSum, i;
 
-    for(i = PKT_ID, checkSum = 0; i < len; i++){
-        checkSum += txpacket[i];
+    for (i = PKT_ID, checkSum = 0; i < len; i++) {
+        checkSum += tx_packet[i];
     }
 
     return(~checkSum);
@@ -167,20 +166,19 @@ uint8_t AP_TTLServo::calculate_crc(uint8_t *txpacket, uint8_t len)
 // Without speed configuration, servos will not run!
 void AP_TTLServo::configure_servos(void)
 {
-
     send_command(BROADCAST_ID, servo_des_run_speed_reg, servo_des_run_speed, 2);
 }
 
 // Use a broadcast ping to find attached servos
 void AP_TTLServo::detect_servos(void)
 {
-    uint8_t txpacket[6];
+    struct packet {
+        uint8_t id = BROADCAST_ID;       //#1 Packet is a broadcast
+        uint8_t length = 2;              //#2 Packet Length equals number of Parameters (0) + 2
+        uint8_t instruction = INST_PING; //#3 Instruction is a Ping
+    } tx_packet;
 
-    txpacket[PKT_ID] = BROADCAST_ID;
-    txpacket[PKT_LENGTH] = 2;
-    txpacket[PKT_INSTRUCTION] = INST_PING;
-
-    send_packet(txpacket);
+    send_packet((const uint8_t *) &tx_packet, tx_packet.length);
 
     // Give plenty of time to receive replies from all servos
     last_send_us = AP_HAL::micros();
@@ -190,10 +188,9 @@ void AP_TTLServo::detect_servos(void)
 // Init the serial port
 void AP_TTLServo::init(void)
 {
-
     AP_SerialManager &serial_manager = AP::serialmanager();
     port = serial_manager.find_serial(AP_SerialManager::SerialProtocol_TTLServo, 0);
-    if (port){
+    if (port) {
         baudrate = serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_TTLServo, 0);
         us_per_byte = 10 * 1e6 / baudrate;
         us_gap = 4 * 1e6 / baudrate;
@@ -201,9 +198,9 @@ void AP_TTLServo::init(void)
 }
 
 // Process received Packet from servo
-void AP_TTLServo::process_packet(const uint8_t *pkt, uint8_t length)
+void AP_TTLServo::process_packet(const uint8_t *packet, uint8_t length)
 {
-    uint8_t id = pkt[PKT_ID];
+    uint8_t id = packet[PKT_ID];
 
     // Discard servos beyond the maximum permissible number of servo channels
     if (id > NUM_SERVO_CHANNELS) {
@@ -221,7 +218,6 @@ void AP_TTLServo::process_packet(const uint8_t *pkt, uint8_t length)
 // Read the bytes received from responses
 void AP_TTLServo::read_bytes(void)
 {
-
     uint32_t n = port->available();
     // If no bytes received or received less than the required to decode an
     // instruction, return in order to wait for the required number of bytes
@@ -277,48 +273,68 @@ void AP_TTLServo::read_bytes(void)
 // Send a command to the servos, changing a register value
 void AP_TTLServo::send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len)
 {
-    uint8_t txpacket[9];
+    struct packet {
+        uint8_t id;                       //#1 Servo ID
+        uint8_t length;                   //#2 Packet length 
+        uint8_t instruction = INST_WRITE; //#3 Instruction is a Write
+        uint8_t reg;                      //#4 First parameter is the register
+        uint16_t value;           //#5 Following parameters is the value
+    } tx_packet;
+    
+    tx_packet.id = id;
+    // Packet length equals number of Parameters (one of the params is the 
+    // desired register + length of value) + 2
+    tx_packet.length = 3 + len;
+    tx_packet.reg = reg;
+    tx_packet.value = value;
+    
 
-    txpacket[PKT_ID] = id;
-
-    // One of the params is the desired register: (2 + len) + 1
-    txpacket[PKT_LENGTH] = 3 + len;
-    txpacket[PKT_INSTRUCTION] = INST_WRITE;
-    txpacket[PKT_PARAMETER0] = reg;
-    memcpy(&txpacket[PKT_PARAMETER0 + 1], &value, MIN(len, 2));
-
-    send_packet(txpacket);
+    send_packet((const uint8_t *) &tx_packet, tx_packet.length);
 }
 
 // Send a communication Packet
-void AP_TTLServo::send_packet(uint8_t *txpacket)
+void AP_TTLServo::send_packet(const uint8_t *packet, uint8_t len)
 {
-
     // Calculate total Packet length
-    uint8_t total_packet_length = txpacket[PKT_LENGTH] + 4;
-
-    // Create the packet header
-    txpacket[PKT_HEADER0]   = 0xFF;
-    txpacket[PKT_HEADER1]   = 0xFF;
-
-    // Calculate CRC and add it to the Packet
-    uint8_t crc = calculate_crc(txpacket, total_packet_length - 1);
-    txpacket[total_packet_length - 1] = crc;
-
-    // Send packet
-    port->write(txpacket, total_packet_length);
-
-    delay_time_us += total_packet_length * us_per_byte + us_gap;
+    uint8_t total_packet_length = len + 1;
+    uint8_t crc = 0;
+    uint8_t tx_packet;
+    uint8_t packet_header[2];
+    
+    // Send header
+    packet_header[PKT_HEADER0] = 0xFF;
+    packet_header[PKT_HEADER1] = 0xFF;
+    port->write(packet_header, 2);
+    hal.scheduler->delay_microseconds(us_per_byte*2);
+    
+    // Send remaining Packet
+    while (total_packet_length) {
+        tx_packet = *packet;
+        if (port->write(tx_packet) == 1) {
+            total_packet_length--;
+            // Calculate CRC
+            crc += tx_packet;
+            packet++;
+            hal.scheduler->delay_microseconds(us_per_byte);
+        } else {
+            // Communication error
+            hal.scheduler->delay_microseconds(100);
+            return;
+        }
+    }
+    // Finally, transmit the CRC
+    port->write(~crc);
+    hal.scheduler->delay_microseconds(us_per_byte + us_gap);
+    delay_time_us += (total_packet_length + 1) * us_per_byte + us_gap;
 }
 
 void AP_TTLServo::update()
 {
-
     // Initialize the serial port
-    if (!initialised){
+    if (!initialised) {
         initialised = true;
         init();
-        if(servo_auto_det_en){
+        if (servo_auto_det_en) {
             servo_id_mask = 0;
         }
         last_send_us = AP_HAL::micros();
@@ -326,7 +342,7 @@ void AP_TTLServo::update()
     }
 
     // If it wasn't possible to initialize serial port
-    if (port == nullptr){
+    if (port == nullptr) {
         return;
     }
 
@@ -335,19 +351,18 @@ void AP_TTLServo::update()
     // If auto-detection of servo IDs is enabled, we need send a Ping Packet in
     // order to receive servo IDs and check the data received to determine those
     // IDs
-    if(servo_auto_det_en){
+    if (servo_auto_det_en) {
 
         // Read any data that may have been received
         read_bytes();
 
         // Waiting for last send to complete
-        if (last_send_us != 0 && now - last_send_us < delay_time_us){
+        if (last_send_us != 0 && now - last_send_us < delay_time_us) {
             return;
         }
 
         // Send a Ping Packet
-        if (detection_count < DETECT_SERVO_COUNT){
-            hal.console->printf("Servo Detected\n");
+        if (detection_count < DETECT_SERVO_COUNT) {
             detection_count++;
             detect_servos();
         }
@@ -371,10 +386,10 @@ void AP_TTLServo::update()
     delay_time_us = 0;
 
     // Loop through all servo channels
-    for (uint8_t i = 0; i < NUM_SERVO_CHANNELS; i++){
+    for (uint8_t i = 0; i < NUM_SERVO_CHANNELS; i++) {
 
         // If this channel doesn't correspond to a servo ID, skip it
-        if (((1U << i) & servo_id_mask) == 0){
+        if (((1U << i) & servo_id_mask) == 0) {
             continue;
         }
 
@@ -391,6 +406,11 @@ void AP_TTLServo::update()
         const uint16_t max = c->get_output_max();
         float v = float(pwm - min) / (max - min);
         uint16_t goalPosition = (uint16_t)(pos_min) + (uint16_t)(v * (pos_max - pos_min));
+        
+        // Don't send goal position if it is equal to previous
+        if (servo_position[i] == goalPosition) {
+            continue;
+        }
 
         // Send the goal position to the servo
         send_command(i, servo_goal_pos_reg, goalPosition, 2);

@@ -43,10 +43,10 @@ class AP_TTLServo {
     void configure_servos(void);
     void detect_servos(void);
     void init(void);
-    void process_packet(const uint8_t *pkt, uint8_t length);
+    void process_packet(const uint8_t *packet, uint8_t length);
     void read_bytes();
     void send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len);
-    void send_packet(uint8_t *txpacket);
+    void send_packet(const uint8_t *packet, uint8_t len);
 
     bool initialised;
 
@@ -61,6 +61,9 @@ class AP_TTLServo {
     // Keep track of the data sent required time
     uint32_t last_send_us;
     uint32_t delay_time_us;
+    
+    // Keep track of the servo positions
+    uint16_t servo_position[32];
 
     // PARAMETERS
     // Servo position limits
