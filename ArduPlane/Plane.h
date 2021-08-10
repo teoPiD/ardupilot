@@ -856,6 +856,8 @@ private:
     void calc_nav_yaw_ground(void);
 
     // Log.cpp
+    uint32_t last_log_fast_ms;
+
     void Log_Write_Fast(void);
     void Log_Write_Attitude(void);
     void Log_Write_Startup(uint8_t type);
@@ -1017,6 +1019,7 @@ private:
     bool set_mode(Mode& new_mode, const ModeReason reason);
     bool set_mode(const uint8_t mode, const ModeReason reason) override;
     bool set_mode_by_number(const Mode::Number new_mode_number, const ModeReason reason);
+    ModeReason _last_reason;
     void check_long_failsafe();
     void check_short_failsafe();
     void startup_INS_ground(void);
