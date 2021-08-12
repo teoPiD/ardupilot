@@ -274,14 +274,14 @@ void AP_TTLServo::read_bytes(void)
 void AP_TTLServo::send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len)
 {
     struct packet {
-        uint8_t id;                       //#1 Servo ID
+        uint8_t id = id;                       //#1 Servo ID
         uint8_t length;                   //#2 Packet length 
         uint8_t instruction = INST_WRITE; //#3 Instruction is a Write
         uint8_t reg;                      //#4 First parameter is the register
         uint16_t value;           //#5 Following parameters is the value
     } tx_packet;
     
-    tx_packet.id = id;
+    //tx_packet.id = id;
     // Packet length equals number of Parameters (one of the params is the 
     // desired register + length of value) + 2
     tx_packet.length = 3 + len;
