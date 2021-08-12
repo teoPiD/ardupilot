@@ -305,6 +305,9 @@ void AP_AHRS::update(bool skip_ins_update)
 
     update_DCM(skip_ins_update);
 
+    // update takeoff/touchdown flags
+    update_flags();
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     update_SITL();
 #endif
@@ -454,7 +457,6 @@ void AP_AHRS::update_EKF2(void)
             _gyro_drift = -_gyro_drift;
 
             // calculate corrected gyro estimate for get_gyro()
-            _gyro_estimate.zero();
             if (primary_imu == -1 || !_ins.get_gyro_health(primary_imu)) {
                 // the primary IMU is undefined so use an uncorrected default value from the INS library
                 _gyro_estimate = _ins.get_gyro();
@@ -534,7 +536,6 @@ void AP_AHRS::update_EKF3(void)
             _gyro_drift = -_gyro_drift;
 
             // calculate corrected gyro estimate for get_gyro()
-            _gyro_estimate.zero();
             if (primary_imu == -1 || !_ins.get_gyro_health(primary_imu)) {
                 // the primary IMU is undefined so use an uncorrected default value from the INS library
                 _gyro_estimate = _ins.get_gyro();
@@ -1747,7 +1748,7 @@ AP_AHRS::EKFType AP_AHRS::active_EKF_type(void) const
     if (ret != EKFType::NONE &&
         (_vehicle_class == AHRS_VEHICLE_FIXED_WING ||
          _vehicle_class == AHRS_VEHICLE_GROUND) &&
-        (_flags.fly_forward || !hal.util->get_soft_armed())) {
+        (fly_forward || !hal.util->get_soft_armed())) {
         bool should_use_gps = true;
         nav_filter_status filt_state;
 #if HAL_NAVEKF2_AVAILABLE
