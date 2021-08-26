@@ -58,6 +58,8 @@ public:
     virtual bool has_user_takeoff(bool must_navigate) const { return false; }
     virtual bool in_guided_mode() const { return false; }
     virtual bool logs_attitude() const { return false; }
+    virtual bool has_direct_motor_output() const { return false; }
+    virtual void output_to_motors() {}
 
     // return a string for this flightmode
     virtual const char *name() const = 0;
@@ -1479,19 +1481,24 @@ public:
     using Mode::Mode;
 
     bool init(bool ignore_checks) override;
-    virtual void run() override;
+    void run() override;
+    void exit();
 
     bool requires_GPS() const override { return false; }
     bool has_manual_throttle() const override { return true; }
     bool allows_arming(bool from_gcs) const override { return true; };
     bool is_autopilot() const override { return false; }
-    
-    void exit();
+    bool has_direct_motor_output() const override { return true; }
+    void output_to_motors() override;
 
 protected:
 
     const char *name() const override { return "GROUND"; }
     const char *name4() const override { return "GRND"; }
+    
+    uint16_t motors_output[4];
+    bool armed;
+    uint32_t time;
 
 private:
 

@@ -173,7 +173,11 @@ void Copter::motors_output()
         }
 
         // send output signals to motors
-        motors->output();
+        if (flightmode->has_direct_motor_output()) {
+            flightmode->output_to_motors();
+        } else {
+            motors->output();
+        }
     }
 
     // push all channels
