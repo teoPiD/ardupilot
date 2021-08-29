@@ -26,17 +26,9 @@ class AP_TTLServo {
     AP_TTLServo();
 
     // Do not allow copies
-<<<<<<< HEAD
     AP_TTLServo(const AP_TTLServo &other) = delete;
-<<<<<<< HEAD
     AP_TTLServo &operator=(const AP_TTLServo&) = delete;
-=======
-    AP_TTLServo &operator = (const AP_TTLServo&) = delete;
->>>>>>> 4f6e74e78f... AP_TTLServo: implement communication protocol for TTL servos based on Robotis Dynamixel 1.0 protocol
-=======
-    CLASS_NO_COPY(AP_TTLServo);
->>>>>>> 1def08eac1... AP_TTLServo: Changed packet from array to struct, as commented by peterbarker, added array to keep track of current servo's position, in order to not be constantly sending position commandas and corrected minor style errors
-
+    
     static const struct AP_Param::GroupInfo var_info[];
 
     void update();
@@ -52,24 +44,11 @@ class AP_TTLServo {
     void configure_servos(void);
     void detect_servos(void);
     void init(void);
-<<<<<<< HEAD
-<<<<<<< HEAD
+
     void process_packet(const uint8_t *packet, uint8_t length);
     void read_bytes();
     void send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len);
     void send_packet(const uint8_t *packet, uint8_t len);
-=======
-    void process_packet(const uint8_t *pkt, uint8_t length);
-    void read_bytes();
-    void send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len);
-    void send_packet(uint8_t *txpacket);
->>>>>>> 4f6e74e78f... AP_TTLServo: implement communication protocol for TTL servos based on Robotis Dynamixel 1.0 protocol
-=======
-    void process_packet(const uint8_t *packet, uint8_t length);
-    void read_bytes();
-    void send_command(uint8_t id, uint8_t reg, uint16_t value, uint8_t len);
-    void send_packet(const uint8_t *packet, uint8_t len);
->>>>>>> 1def08eac1... AP_TTLServo: Changed packet from array to struct, as commented by peterbarker, added array to keep track of current servo's position, in order to not be constantly sending position commandas and corrected minor style errors
 
     bool initialised;
 
@@ -84,18 +63,9 @@ class AP_TTLServo {
     // Keep track of the data sent required time
     uint32_t last_send_us;
     uint32_t delay_time_us;
-<<<<<<< HEAD
-<<<<<<< HEAD
     
     // Keep track of the servo positions
     uint16_t servo_position[32];
-=======
->>>>>>> 4f6e74e78f... AP_TTLServo: implement communication protocol for TTL servos based on Robotis Dynamixel 1.0 protocol
-=======
-    
-    // Keep track of the servo positions
-    uint16_t servo_position[32];
->>>>>>> 1def08eac1... AP_TTLServo: Changed packet from array to struct, as commented by peterbarker, added array to keep track of current servo's position, in order to not be constantly sending position commandas and corrected minor style errors
 
     // PARAMETERS
     // Servo position limits
