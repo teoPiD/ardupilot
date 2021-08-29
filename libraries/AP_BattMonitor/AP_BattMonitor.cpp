@@ -8,6 +8,7 @@
 #include "AP_BattMonitor_Sum.h"
 #include "AP_BattMonitor_FuelFlow.h"
 #include "AP_BattMonitor_FuelLevel_PWM.h"
+#include "AP_BattMonitor_SMBus_Custom.h"
 
 #include <AP_HAL/AP_HAL.h>
 
@@ -138,6 +139,13 @@ AP_BattMonitor::init()
                 drivers[instance] = new AP_BattMonitor_SMBus_Maxell(*this, state[instance], _params[instance],
                                                                     hal.i2c_mgr->get_device(_params[instance]._i2c_bus, AP_BATTMONITOR_SMBUS_I2C_ADDR,
                                                                                             100000, true, 20));
+                break;
+                
+            case AP_BattMonitor_Params::BattMonitor_TYPE_CUSTOM:
+                _params[instance]._i2c_bus.set_default(AP_BATTMONITOR_SMBUS_BUS_EXTERNAL);
+                drivers[instance] = new AP_BattMonitor_SMBus_Custom(*this, state[instance], _params[instance],
+                                                                    hal.i2c_mgr->get_device(_params[instance]._i2c_bus, _params[instance]._i2c_address,
+                                                                                            100000, true, 20), _params[instance]._num_cells);
                 break;
 #endif // HAL_BATTMON_SMBUS_ENABLE
             case AP_BattMonitor_Params::BattMonitor_TYPE_BEBOP:
