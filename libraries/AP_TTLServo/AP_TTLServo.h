@@ -63,9 +63,6 @@ class AP_TTLServo {
     // Keep track of the data sent required time
     uint32_t last_send_us;
     uint32_t delay_time_us;
-    
-    // Keep track of the servo positions
-    uint16_t servo_position[32];
 
     // PARAMETERS
     // Servo position limits

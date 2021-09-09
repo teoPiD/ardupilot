@@ -64,13 +64,13 @@ extern const AP_HAL::HAL& hal;
 #define PKT_PARAMETER0     5
 
 // Register offset for goal position
-#define GOAL_POSITION_REG 0x2A
+#define GOAL_POSITION_REG  0x2A
 
 // Register offset for running speed
-#define RUNNING_SPEED_REG 0x2E
+#define RUNNING_SPEED_REG  0x2E
 
 // Define the desired running speed
-#define RUNNING_SPEED 2500
+#define RUNNING_SPEED      2500
 
 // How many times to broadcast messages to configure the servos
 #define CONFIGURE_SERVO_COUNT 4
@@ -322,7 +322,6 @@ void AP_TTLServo::update()
 {
     // Initialize the serial port
     if (!initialised) {
-        memset(servo_position, 0xFF, NUM_SERVO_CHANNELS * 2);
         init();
         if (servo_auto_det_en) {
             servo_id_mask = 0;
@@ -397,13 +396,6 @@ void AP_TTLServo::update()
         const uint16_t max = c->get_output_max();
         float v = float(pwm - min) / (max - min);
         uint16_t goalPosition = (uint16_t)(pos_min) + (uint16_t)(v * (pos_max - pos_min));
-        
-        // Don't send goal position if it is equal to previous
-        if (servo_position[i] == goalPosition) {
-            continue;
-        } else {
-            servo_position[i] = goalPosition;
-        }
 
         // Send the goal position to the servo
         send_command(i, servo_goal_pos_reg, goalPosition, 2);

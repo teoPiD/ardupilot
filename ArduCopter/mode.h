@@ -1496,9 +1496,17 @@ protected:
     const char *name() const override { return "GROUND"; }
     const char *name4() const override { return "GRND"; }
     
-    uint16_t motors_output[4];
+    enum movementState {
+         NO_THROTTLE, 
+         FORWARD,
+         BACKWARD
+         }; 
+    
+    uint16_t motorsOutput[4];
     bool armed;
     uint32_t time;
+    uint32_t brakeTimer;
+    movementState lastState, currState;
 
 private:
 

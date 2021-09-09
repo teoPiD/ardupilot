@@ -7,7 +7,7 @@
 
 #define BATTMONITOR_SMBUS_CUSTOM_CELL_VOLTAGE         0x28    // Cell voltage register
 #define BATTMONITOR_SMBUS_CUSTOM_CURRENT              0x2a    // Current register
-#define BATTMONITOR_SMBUS_CUSTOM_MAX_CELLS            14      // Custom max cell count
+#define BATTMONITOR_SMBUS_CUSTOM_MAX_CELLS            4      // Custom max cell count
 
 extern const AP_HAL::HAL& hal;
 
@@ -31,11 +31,11 @@ AP_BattMonitor_SMBus_Custom::AP_BattMonitor_SMBus_Custom(AP_BattMonitor &mon,
 
 void AP_BattMonitor_SMBus_Custom::timer()
 {
-    uint8_t buff[8];
+    uint8_t buff[BATTMONITOR_SMBUS_CUSTOM_MAX_CELLS << 1];
     uint32_t tnow = AP_HAL::micros();
 
     // read cell voltages
-    if (read_block(BATTMONITOR_SMBUS_CUSTOM_CELL_VOLTAGE, buff, MIN(BATTMONITOR_SMBUS_CUSTOM_MAX_CELLS, cell_count)) == cell_count) {
+    if (read_block(BATTMONITOR_SMBUS_CUSTOM_CELL_VOLTAGE, buff, (MIN(BATTMONITOR_SMBUS_CUSTOM_MAX_CELLS, cell_count) << 1)) == (cell_count << 1)) {
         float pack_voltage_mv = 0.0f;
         for (uint8_t i = 0; i < MIN(BATTMONITOR_SMBUS_CUSTOM_MAX_CELLS, cell_count); i++) {
             uint16_t cell = buff[(i * 2) + 1] << 8 | buff[i * 2];
@@ -51,11 +51,10 @@ void AP_BattMonitor_SMBus_Custom::timer()
         _state.voltage = pack_voltage_mv * 1e-3f;
         _state.last_time_micros = tnow;
         _state.healthy = true;
-        hal.console->printf(" and voltage");
     }
 
     // timeout after 5 seconds
-    if ((tnow - _state.last_time_micros) > AP_BATTMONITOR_SMBUS_TIMEOUT_MICROS*4) {
+    if ((tnow - _state.last_time_micros) > AP_BATTMONITOR_SMBUS_TIMEOUT_MICROS) {
         _state.healthy = false;
         // do not attempt to ready any more data from battery
         return;
@@ -65,7 +64,6 @@ void AP_BattMonitor_SMBus_Custom::timer()
     if (read_block(BATTMONITOR_SMBUS_CUSTOM_CURRENT, buff, 4) == 4) {
         _state.current_amps = -(float)((int32_t)((uint32_t)buff[3]<<24 | (uint32_t)buff[2]<<16 | (uint32_t)buff[1]<<8 | (uint32_t)buff[0])) / 1000.0f;
         _state.last_time_micros = tnow;
-        hal.console->printf(" and current");
     }
 }
 
