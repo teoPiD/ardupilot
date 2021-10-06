@@ -1143,6 +1143,8 @@ class ModeStabilize : public Mode {
 public:
     // inherit constructor
     using Mode::Mode;
+    
+    bool init(bool ignore_checks) override;
 
     virtual void run() override;
 
@@ -1499,14 +1501,23 @@ protected:
     enum movementState {
          NO_THROTTLE, 
          FORWARD,
-         BACKWARD
+         BACKWARD,
+         INCLINED,
+         FLAT
          }; 
+         
+    enum servoStates {
+          TILT_INWARDS, 
+          TILT_FORWARD,
+          TILT_BACKWARDS
+          }; 
     
     uint16_t motorsOutput[4];
     bool armed;
     uint32_t time;
     uint32_t brakeTimer;
     movementState lastState, currState;
+    servoStates servoState; 
 
 private:
 

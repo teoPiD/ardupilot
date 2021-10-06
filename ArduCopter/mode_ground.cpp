@@ -3,13 +3,16 @@
 #if MODE_GROUND_ENABLED == ENABLED
 
 #define SERVO_OUTPUT_RANGE 18000
-#define MAX_SPEED_NO_BRAKE_POWER 0.2
-#define MAX_SPEED_BRAKE_POWER 0.4
-#define MAX_TURN_POWER 0.6
+#define MAX_SPEED_NO_BRAKE_POWER 0.35
+#define MAX_SPEED_BRAKE_POWER 0.5
+#define MAX_TURN_POWER 0.7
 #define BRAKE_MAX_TIME 2000
 #define MIN_SPIN 1025
-#define MAX_SPIN 1700
+#define MAX_SPIN 1800
 #define ARMING_TIME 4000
+#define MINIMUM_INCLINATION_ANGLE 1000
+#define INCLINED_ANGLE_THROTTLE   0.8
+#define INCLINED_ANGLE            4500
 
 /*
  * Init and run calls for ground locomotion mode
@@ -21,22 +24,26 @@ bool ModeGround::init(bool ignore_checks)
     // Don't enter the mode if sticks are not centered
     if (!is_zero(channel_pitch->norm_input_dz()) 
         || !is_zero(channel_roll->norm_input_dz())
-        || !is_zero(channel_yaw->norm_input_dz())) {
+        || !is_zero(channel_yaw->norm_input_dz()) 
+        || channel_throttle->get_control_in()) {
         return false;
     }
     
     // Set up servos, which should be connected to CH_1 and CH_2
-    if (!(SRV_Channels::set_aux_channel_default(SRV_Channel::k_motor_tilt , CH_1))
-        || !(SRV_Channels::set_aux_channel_default(SRV_Channel::k_motor_tilt , CH_2))) {
+    if (!(SRV_Channels::set_aux_channel_default(SRV_Channel::k_tilt_front_motors , CH_1))
+        || !(SRV_Channels::set_aux_channel_default(SRV_Channel::k_tilt_back_motors , CH_2))) {
         return false;
     }
     // Set servos to ground mode angle
-    SRV_Channels::set_angle(SRV_Channel::k_motor_tilt, SERVO_OUTPUT_RANGE);
-    SRV_Channels::set_output_scaled(SRV_Channel::k_motor_tilt, -SERVO_OUTPUT_RANGE/2);
+    SRV_Channels::set_angle(SRV_Channel::k_tilt_front_motors, SERVO_OUTPUT_RANGE);
+    SRV_Channels::set_angle(SRV_Channel::k_tilt_back_motors, SERVO_OUTPUT_RANGE);
+    SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_front_motors, -SERVO_OUTPUT_RANGE/2);
+    SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_back_motors, -SERVO_OUTPUT_RANGE/2);
     
     armed = false;
     lastState = NO_THROTTLE;
     currState = NO_THROTTLE;
+    servoState = TILT_INWARDS;
     
     // Disable throttle failsafe
     g.failsafe_throttle = FS_THR_DISABLED;
@@ -57,13 +64,32 @@ void ModeGround::run()
     // Mark radio frame as consumed
     copter.ap.new_radio_frame = false;
     
-    float throttle, throttleScaled, yaw, yawScaled;
-    
-    throttle = copter.channel_pitch->norm_input_dz();
-    yaw = copter.channel_yaw->norm_input_dz();
-    
-    for (int i = 0; i < 4; i++){
+    /*for (int i = 0; i < 4; i++) {
         motorsOutput[i] = 0;
+    }*/
+    memset(motorsOutput, 0, 8);
+    
+    // Special inclination, while moving forward
+    if (rc().channel(CH_7)->get_control_in() > 600) {
+        if (servoState != TILT_FORWARD) {
+            SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_front_motors, SERVO_OUTPUT_RANGE/2);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_back_motors, -SERVO_OUTPUT_RANGE/2);
+            servoState = TILT_FORWARD;
+        }
+    // Special inclination, while moving backward
+    } else if(rc().channel(CH_7)->get_control_in() < 400) {
+        if (servoState != TILT_BACKWARDS) {
+            SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_front_motors, -SERVO_OUTPUT_RANGE/2);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_back_motors, SERVO_OUTPUT_RANGE/2);
+            servoState = TILT_BACKWARDS;
+        }
+    // Standard motors tilt while moving
+    } else {
+        if (servoState != TILT_INWARDS) {
+            SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_front_motors, -SERVO_OUTPUT_RANGE/2);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_back_motors, -SERVO_OUTPUT_RANGE/2);
+            servoState = TILT_INWARDS;
+        }
     }
     
     // Motors should stop spinning if radio not detected, if not armed or
@@ -85,46 +111,83 @@ void ModeGround::run()
         armed = true;
     }
     
+    float throttle, yaw;
+    
+    throttle = copter.channel_pitch->norm_input_dz();
+    yaw = copter.channel_yaw->norm_input_dz();
+    
     // Check for saturation and scale back throttle and yaw proportionally
-    const float saturationValue = fabsf(throttle) + fabsf(yaw);
+    /*const float saturationValue = fabsf(throttle) + fabsf(yaw);
     if (saturationValue > 1.0f) {
         yawScaled = yaw / saturationValue;
         throttleScaled = throttle / saturationValue;
-    } else {
-        yawScaled = yaw;
-        throttleScaled = throttle;
-    }
+    } else {*/
+    //yawScaled = yaw;
+    //throttleScaled = throttle;
+    //}
     
     uint16_t throttlePWM = motors->get_pwm_output_max() - motors->get_pwm_output_min();
+    uint16_t minThrottlePWM = (uint16_t)((float)(throttlePWM * fabsf(throttle) 
+                                              * MAX_SPEED_NO_BRAKE_POWER));
     uint16_t yawPWM = (uint16_t)((float)(motors->get_pwm_output_max() - motors->get_pwm_output_min()) 
-                  * MAX_TURN_POWER * fabsf(yawScaled));
+                  * MAX_TURN_POWER * fabsf(yaw));
     
-    // Reverse steering - default for Rover: " By default regular and skid-steering 
+    // Value angle*100
+    int32_t pitch = ahrs.pitch_sensor;
+    
+    // Reverse steering - default for Rover: "By default regular and skid-steering 
     // vehicles reverse their rotation direction when backing up"
-    // Otherwise, Don0t change direction while reversing
-    if(rc().channel(CH_7)->get_control_in() > 1800){
-        const float steeringDir = is_negative(throttleScaled) ? -1.0 : 1.0;
-        yawScaled = steeringDir * yawScaled;
+    // Otherwise, don't change direction while reversing
+    if(rc().channel(CH_8)->get_control_in() > 600){
+        const float steeringDir = is_negative(throttle) ? -1.0 : 1.0;
+        yaw = steeringDir * yaw;
     }
     
+    // Check if we are moving on an inclined surface
+    if(abs(pitch) >= MINIMUM_INCLINATION_ANGLE){
+        if ((currState != INCLINED)) {
+            if (currState != NO_THROTTLE) {
+                lastState = currState;
+            }
+            currState = INCLINED;
+        }
+        if (((throttle > 0.0f) && (pitch < 0)) || ((throttle < 0.0f) && (pitch > 0))) {
+            // Thrust depends on the square of throttle
+            float factor = safe_sqrt((float)(abs(pitch) * INCLINED_ANGLE_THROTTLE / INCLINED_ANGLE));
+            if (factor > INCLINED_ANGLE_THROTTLE) {
+                factor = INCLINED_ANGLE_THROTTLE;
+            }
+            throttlePWM = (uint16_t)((float)(throttlePWM * fabsf(throttle) * factor));
+            if(throttlePWM < minThrottlePWM){
+                throttlePWM = minThrottlePWM;
+            }
+        } else {
+            throttlePWM = minThrottlePWM;
+        }
     // Check if we want to break              
-    if (AP_HAL::millis() - brakeTimer <= BRAKE_MAX_TIME) {
+    } else if (AP_HAL::millis() - brakeTimer <= BRAKE_MAX_TIME) {
+        if(currState == INCLINED){
+            lastState = INCLINED;
+            currState = FLAT;
+        }
         if (((currState == FORWARD) && (lastState == BACKWARD)) ||
            ((currState == BACKWARD) && (lastState == FORWARD))) {
-            throttlePWM = (uint16_t)((float)(throttlePWM * fabsf(throttleScaled) 
+            throttlePWM = (uint16_t)((float)(throttlePWM * fabsf(throttle) 
                                             * MAX_SPEED_BRAKE_POWER));
         } else {
-            throttlePWM = (uint16_t)((float)(throttlePWM * fabsf(throttleScaled) 
-                                            * MAX_SPEED_NO_BRAKE_POWER));
+            throttlePWM = minThrottlePWM;
         }
     } else {
-        throttlePWM = (uint16_t)((float)(throttlePWM * fabsf(throttleScaled) 
-                                        * MAX_SPEED_NO_BRAKE_POWER));
+        if(currState == INCLINED){
+            lastState = INCLINED;
+            currState = FLAT;
+        }
+        throttlePWM = minThrottlePWM;
     }
     
     // Backward
-    if (throttleScaled > 0.0f) {
-        if (currState != BACKWARD) {
+    if (throttle > 0.0f) {
+        if ((currState != BACKWARD) && (currState != INCLINED)) {
             if (currState != NO_THROTTLE) {
                 lastState = currState;
             }
@@ -133,11 +196,17 @@ void ModeGround::run()
             // passing by NO_THROTTLE state
             brakeTimer = AP_HAL::millis();
         }
-        motorsOutput[0] = throttlePWM;
-        motorsOutput[2] = throttlePWM;
+        if(servoState != TILT_FORWARD){
+            motorsOutput[0] = throttlePWM;
+            motorsOutput[2] = throttlePWM;
+        }
+        if (servoState == TILT_BACKWARDS){
+            motorsOutput[1] = throttlePWM;
+            motorsOutput[3] = throttlePWM;
+        }
     // Forward
-    } else if (throttleScaled < 0.0f) {
-        if (currState != FORWARD) {
+    } else if (throttle < 0.0f) {
+        if ((currState != FORWARD) && (currState != INCLINED)) {
             if (currState != NO_THROTTLE) {
                 lastState = currState;
             }
@@ -146,23 +215,49 @@ void ModeGround::run()
             // passing by NO_THROTTLE state
             brakeTimer = AP_HAL::millis();
         }
-        motorsOutput[1] = throttlePWM;
-        motorsOutput[3] = throttlePWM;
+        if(servoState != TILT_BACKWARDS){
+            motorsOutput[1] = throttlePWM;
+            motorsOutput[3] = throttlePWM;
+        }
+        if (servoState == TILT_FORWARD){
+            motorsOutput[0] = throttlePWM;
+            motorsOutput[2] = throttlePWM;
+        }
     // No throttle being requested
     } else {
-        if (currState != NO_THROTTLE){
+        // Could be added a no state timer, to avoid braking if state was no 
+        // state for too long
+        if ((currState != NO_THROTTLE) && (currState != INCLINED)){
             lastState = currState;
             currState = NO_THROTTLE;
         }
         brakeTimer = AP_HAL::millis();
     }
-                  
-    if (yawScaled > 0.0f) {
-        motorsOutput[0] += yawPWM;
-        motorsOutput[1] += yawPWM;
-    } else if (yawScaled < 0.0f) {
-        motorsOutput[2] += yawPWM;
-        motorsOutput[3] += yawPWM;
+    
+    // Clockwise Turn
+    if (yaw > 0.0f) {
+        if (servoState == TILT_INWARDS) {
+            motorsOutput[0] += yawPWM;
+            motorsOutput[1] += yawPWM;
+        } else if (servoState == TILT_FORWARD){
+            motorsOutput[1] += yawPWM;
+            motorsOutput[2] += yawPWM;
+        } else if (servoState == TILT_BACKWARDS){
+            motorsOutput[0] += yawPWM;
+            motorsOutput[3] += yawPWM;
+        }
+    // Counter-clockwise turn
+    } else if (yaw < 0.0f) {
+        if ( servoState == TILT_INWARDS) {
+            motorsOutput[2] += yawPWM;
+            motorsOutput[3] += yawPWM;
+        } else if (servoState == TILT_FORWARD){
+            motorsOutput[0] += yawPWM;
+            motorsOutput[3] += yawPWM;
+        } else if (servoState == TILT_BACKWARDS){
+            motorsOutput[1] += yawPWM;
+            motorsOutput[2] += yawPWM;
+        }
     }
 }
 
@@ -183,7 +278,8 @@ void ModeGround::output_to_motors()
 
 void ModeGround::exit()
 {
-    SRV_Channels::set_output_scaled(SRV_Channel::k_motor_tilt, -SERVO_OUTPUT_RANGE);
+    SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_front_motors, -SERVO_OUTPUT_RANGE);
+    SRV_Channels::set_output_scaled(SRV_Channel::k_tilt_back_motors, -SERVO_OUTPUT_RANGE);
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::SHUT_DOWN);
     // Re-enable throtle failsafe
     g.failsafe_throttle.load();
