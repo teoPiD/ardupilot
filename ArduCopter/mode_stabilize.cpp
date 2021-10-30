@@ -4,6 +4,20 @@
  * Init and run calls for stabilize flight mode
  */
 
+ // stabilize init - initialises
+ bool ModeStabilize::init(bool ignore_checks)
+ {
+     // Don't enter the mode if sticks are not a their central position
+     if (!is_zero(channel_pitch->norm_input_dz()) 
+         || !is_zero(channel_roll->norm_input_dz())
+         || !is_zero(channel_yaw->norm_input_dz()) 
+         || channel_throttle->get_control_in()) {
+         return false;
+     }
+     
+     return true;
+ }
+ 
 // stabilize_run - runs the main stabilize controller
 // should be called at 100hz or more
 void ModeStabilize::run()
