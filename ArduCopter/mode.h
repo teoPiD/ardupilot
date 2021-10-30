@@ -36,6 +36,7 @@ public:
         ZIGZAG    =    24,  // ZIGZAG mode is able to fly in a zigzag manner with predefined point A and point B
         SYSTEMID  =    25,  // System ID mode produces automated system identification signals in the controllers
         AUTOROTATE =   26,  // Autonomous autorotation
+        TEST =         27,  // Static Thrust Test mode
     };
 
     // constructor
@@ -57,6 +58,8 @@ public:
     virtual bool has_user_takeoff(bool must_navigate) const { return false; }
     virtual bool in_guided_mode() const { return false; }
     virtual bool logs_attitude() const { return false; }
+    virtual bool has_direct_motor_output() const { return false; }
+    virtual void output_to_motors() {}
 
     // return a string for this flightmode
     virtual const char *name() const = 0;
@@ -1466,6 +1469,39 @@ private:
 
     //--- Internal functions ---
     void warning_message(uint8_t message_n);    //Handles output messages to the terminal
+
+};
+#endif
+
+#if MODE_TEST_ENABLED == ENABLED
+class ModeTest : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+
+    bool init(bool ignore_checks) override;
+    void run() override;
+    void exit();
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return true; }
+    bool allows_arming(bool from_gcs) const override { return true; };
+    bool is_autopilot() const override { return false; }
+    bool has_direct_motor_output() const override { return true; }
+    void output_to_motors() override;
+
+protected:
+
+    const char *name() const override { return "Test"; }
+    const char *name4() const override { return "Test"; }
+    
+    uint16_t motorOutput;
+    bool armed;
+    uint32_t time, motorTimer;
+    uint8_t counter;
+
+private:
 
 };
 #endif
