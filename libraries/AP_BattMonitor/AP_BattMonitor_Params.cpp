@@ -168,6 +168,20 @@ const AP_Param::GroupInfo AP_BattMonitor_Params::var_info[] = {
     // @Range: 0 3
     // @User: Standard
     AP_GROUPINFO("BUS", 20, AP_BattMonitor_Params, _i2c_bus, 0),
+    
+    // @Param: ADDRESS
+    // @DisplayName: Battery monitor I2C address
+    // @Description: Battery monitor I2C address
+    // @Range: 0 127
+    // @User: Standard
+    AP_GROUPINFO("ADDRESS", 21, AP_BattMonitor_Params, _i2c_address, 0),
+    
+    // @Param: N_CELLS
+    // @DisplayName: Battery number of cells
+    // @Description: Battery number of cells
+    // @Range: 0 14
+    // @User: Standard
+    AP_GROUPINFO("N_CELLS", 22, AP_BattMonitor_Params, _num_cells, 0),
 
     AP_GROUPEND
 
