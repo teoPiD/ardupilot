@@ -171,9 +171,9 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             break;
 #endif
 
-#if MODE_GROUND_ENABLED == ENABLED
-        case Mode::Number::GROUND:
-            ret = &mode_ground;
+#if MODE_WALL_CLIMB_ENABLED == ENABLED
+        case Mode::Number::WALLCLIMB:
+            ret = &mode_wall_climb;
             break;
 #endif
 
@@ -387,9 +387,9 @@ void Copter::exit_mode(Mode *&old_flightmode,
     }
 #endif //HELI_FRAME
 
-#if MODE_GROUND_ENABLED == ENABLED
-    if (old_flightmode == &mode_ground) {
-        mode_ground.exit();
+#if MODE_WALL_CLIMB_ENABLED == ENABLED
+    if (old_flightmode == &mode_wall_climb) {
+        mode_wall_climb.exit();
     }
 #endif
 }

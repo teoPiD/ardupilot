@@ -236,7 +236,7 @@ public:
     friend class ModeThrow;
     friend class ModeZigZag;
     friend class ModeAutorotate;
-    friend class ModeGround;
+    friend class ModeWallClimb;
 
     Copter(void);
 
@@ -994,8 +994,8 @@ private:
 #if MODE_AUTOROTATE_ENABLED == ENABLED
     ModeAutorotate mode_autorotate;
 #endif
-#if MODE_GROUND_ENABLED == ENABLED
-    ModeGround mode_ground;
+#if MODE_WALL_CLIMB_ENABLED == ENABLED
+    ModeWallClimb mode_wall_climb;
 #endif
 
     // mode.cpp

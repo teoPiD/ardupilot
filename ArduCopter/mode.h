@@ -36,7 +36,7 @@ public:
         ZIGZAG    =    24,  // ZIGZAG mode is able to fly in a zigzag manner with predefined point A and point B
         SYSTEMID  =    25,  // System ID mode produces automated system identification signals in the controllers
         AUTOROTATE =   26,  // Autonomous autorotation
-        GROUND =       27,  // Ground locomotion
+        WALLCLIMB =    27,  // Wall Climb
     };
 
     // constructor
@@ -1475,8 +1475,8 @@ private:
 };
 #endif
 
-#if MODE_GROUND_ENABLED == ENABLED
-class ModeGround : public Mode {
+#if MODE_WALL_CLIMB_ENABLED == ENABLED
+class ModeWallClimb: public Mode {
 
 public:
     // inherit constructor
@@ -1495,28 +1495,18 @@ public:
 
 protected:
 
-    const char *name() const override { return "GROUND"; }
-    const char *name4() const override { return "GRND"; }
-    
-    enum movementState {
-         NO_THROTTLE, 
-         FORWARD,
-         BACKWARD,
-         INCLINED,
-         FLAT
-         }; 
+    const char *name() const override { return "WALLCLIMB"; }
+    const char *name4() const override { return "WALC"; }
          
     enum servoStates {
-          TILT_INWARDS, 
-          TILT_FORWARD,
-          TILT_BACKWARDS
+          TILT_115, 
+          TILT_125,
+          TILT_135
           }; 
     
     uint16_t motorsOutput[4];
     bool armed;
     uint32_t time;
-    uint32_t brakeTimer;
-    movementState lastState, currState;
     servoStates servoState; 
 
 private:
