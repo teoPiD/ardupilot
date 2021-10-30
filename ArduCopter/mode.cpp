@@ -171,6 +171,12 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             break;
 #endif
 
+#if MODE_GROUND_ENABLED == ENABLED
+        case Mode::Number::GROUND:
+            ret = &mode_ground;
+            break;
+#endif
+
         default:
             break;
     }
@@ -380,6 +386,12 @@ void Copter::exit_mode(Mode *&old_flightmode,
         }
     }
 #endif //HELI_FRAME
+
+#if MODE_GROUND_ENABLED == ENABLED
+    if (old_flightmode == &mode_ground) {
+        mode_ground.exit();
+    }
+#endif
 }
 
 // notify_flight_mode - sets notify object based on current flight mode.  Only used for OreoLED notify device
